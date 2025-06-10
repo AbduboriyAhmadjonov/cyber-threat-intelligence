@@ -1,67 +1,32 @@
+// services/checkUrlSafety.js
 import axios from 'axios';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// Create axios instances for all three APIs
+// Create axios instances for all three APIs with timeouts
 const googleSafeBrowsingClient = axios.create({
   baseURL: 'https://safebrowsing.googleapis.com/v4',
   params: { key: process.env.GOOGLE_API_KEY },
+  timeout: 10000, // 10 seconds
 });
 
 const virusTotalClient = axios.create({
   baseURL: 'https://www.virustotal.com/api/v3',
   headers: { 'x-apikey': process.env.VIRUSTOTAL_API_KEY },
+  timeout: 10000, // 10 seconds
 });
 
 const urlscanClient = axios.create({
   baseURL: 'https://urlscan.io/api/v1',
   headers: { 'API-Key': process.env.URL_SCAN_IO },
+  timeout: 10000, // 10 seconds
 });
-
-async function checkUrlSafety(url) {
-  // Normalize the URL and extract domain
-  const normalizedUrl = url.startsWith('http') ? url : `http://${url}`;
-
-  const externalReports = {};
-  let isSafe = true; // Track if URL is safe overall
-
-  // Run all API checks in parallel
-  const apiPromises = [
-    checkGoogleSafeBrowsing(normalizedUrl, externalReports),
-    checkVirusTotal(normalizedUrl, externalReports),
-    submitUrlscan(normalizedUrl, externalReports),
-  ];
-
-  // Wait for all promises to settle (not necessarily succeed)
-  await Promise.allSettled(apiPromises);
-
-  // Determine overall safety based on available results
-  if (
-    externalReports.googleSafeBrowsing &&
-    !externalReports.googleSafeBrowsing.safe
-  ) {
-    isSafe = false;
-  }
-
-  if (externalReports.virusTotal && externalReports.virusTotal.positives > 0) {
-    isSafe = false;
-  }
-
-  if (externalReports.urlscan && externalReports.urlscan.malicious) {
-    isSafe = false;
-  }
-
-  return {
-    url: normalizedUrl,
-    isSafe,
-    externalReports,
-  };
-}
 
 /**
  * Google Safe Browsing API check
+ * @returns {object} { safe: boolean, threats: string[] } or { error: string }
  */
-async function checkGoogleSafeBrowsing(url, externalReports) {
+async function checkGoogleSafeBrowsing(url) {
   try {
     const response = await googleSafeBrowsingClient.post(
       '/threatMatches:find',
@@ -85,22 +50,22 @@ async function checkGoogleSafeBrowsing(url, externalReports) {
     );
 
     const threats = response.data.matches || [];
-    externalReports.googleSafeBrowsing = {
+    return {
       safe: threats.length === 0,
-      threats: threats.map((match) => match.threatType),
+      threats: threats.map((match) => match.threatType), // Map to threat types (strings)
     };
   } catch (error) {
-    // Silently handle error - don't add to externalReports if it failed
     console.error('Google Safe Browsing API error:', error.message);
+    return { error: `Google Safe Browsing failed: ${error.message}` };
   }
 }
 
 /**
  * VirusTotal API check
+ * @returns {object} { positives: number, total: number, scanDate: number (timestamp) } or { error: string }
  */
-async function checkVirusTotal(url, externalReports) {
+async function checkVirusTotal(url) {
   try {
-    // URL ID is a base64 encoded URL
     const urlId = Buffer.from(url)
       .toString('base64')
       .replace(/\+/g, '-')
@@ -109,56 +74,82 @@ async function checkVirusTotal(url, externalReports) {
 
     const response = await virusTotalClient.get(`/urls/${urlId}`);
 
-    const results = response.data.data.attributes.last_analysis_results;
-    const stats = response.data.data.attributes.last_analysis_stats;
+    if (
+      !response.data ||
+      !response.data.data ||
+      !response.data.data.attributes
+    ) {
+      // If data is missing but no HTTP error, means no analysis
+      return {
+        positives: 0,
+        total: 0,
+        scanDate: null,
+        message: 'No analysis data found for this URL.',
+      };
+    }
 
-    externalReports.virusTotal = {
+    const stats = response.data.data.attributes.last_analysis_stats;
+    const scanDate = response.data.data.attributes.last_analysis_date; // Unix timestamp in seconds
+
+    return {
       positives: stats.malicious + stats.suspicious,
-      total: Object.keys(results).length,
-      scanDate: new Date(
-        response.data.data.attributes.last_analysis_date * 1000
-      ),
+      total: Object.keys(response.data.data.attributes.last_analysis_results)
+        .length,
+      scanDate: scanDate * 1000, // Convert to milliseconds for JS Date / timestamp
     };
   } catch (error) {
-    // Silently handle error - don't add to externalReports if it failed
+    // VirusTotal returns 404 if URL has not been seen before, which is not an error but "no info"
+    if (error.response && error.response.status === 404) {
+      return {
+        positives: 0,
+        total: 0,
+        scanDate: null,
+        message:
+          'URL not found in VirusTotal database, likely harmless or new.',
+      };
+    }
     console.error('VirusTotal API error:', error.message);
+    return { error: `VirusTotal failed: ${error.message}` };
   }
 }
 
 /**
  * Submit URL to urlscan.io
+ * @returns {object} { scanId: string, scanUrl: string, status: string, message: string } or { error: string }
  */
-async function submitUrlscan(url, externalReports) {
+async function submitUrlscan(url) {
   try {
-    // Submit the URL for scanning
     const submitResponse = await urlscanClient.post('/scan/', {
       url: url,
       visibility: 'private',
     });
 
-    // Just add submission details initially
-    externalReports.urlscan = {
+    return {
       scanId: submitResponse.data.uuid,
       scanUrl: submitResponse.data.result,
       status: 'pending',
       message: 'Scan submitted, results pending',
     };
   } catch (error) {
-    // Silently handle error - don't add to externalReports if it failed
     console.error('urlscan.io submission error:', error.message);
+    return { error: `URLScan.io submission failed: ${error.message}` };
   }
 }
 
 /**
  * Get urlscan.io results for a scan ID
+ * @returns {object} Full urlscan results or { status: 'processing', message: string } or { error: string }
  */
 async function getUrlscanResults(scanId) {
   try {
     const resultResponse = await urlscanClient.get(`/result/${scanId}/`);
     const scanData = resultResponse.data;
 
+    // A scan is considered 'completed' if verdicts.overall is present
+    const isCompleted = !!scanData.verdicts?.overall;
+
     return {
-      status: 'completed',
+      status: isCompleted ? 'completed' : 'processing', // Explicitly set completed/processing
       score: scanData.verdicts?.overall?.score || 0,
       malicious: scanData.verdicts?.overall?.malicious || false,
       scanId: scanId,
@@ -166,74 +157,123 @@ async function getUrlscanResults(scanId) {
       screenshotUrl: scanData.task?.screenshotURL || null,
       categories: scanData.verdicts?.categories || [],
       tags: scanData.verdicts?.tags || [],
-      scanDate: new Date(scanData.task?.time || Date.now()),
+      // Convert date to timestamp (milliseconds) for consistency
+      scanDate: scanData.task?.time
+        ? new Date(scanData.task.time).getTime()
+        : null,
+      message: isCompleted ? 'Scan completed' : 'Scan still processing',
     };
   } catch (error) {
     if (error.response && error.response.status === 404) {
-      // Scan is still processing
+      // Scan is still processing, or not found yet by urlscan.io
       return {
         status: 'processing',
-        message: 'Scan still processing, try again later',
+        message: 'Scan still processing or not found, try again later',
         scanId: scanId,
+        malicious: false, // Default to false if not completed
+        score: 0,
+        scanUrl: `https://urlscan.io/result/${scanId}/`, // Provide fallback
       };
     } else {
       console.error('urlscan.io results error:', error.message);
       return {
         status: 'error',
-        message: 'Error retrieving scan results',
+        message: `Error retrieving urlscan.io results: ${error.message}`,
         scanId: scanId,
+        malicious: false,
+        score: 0,
+        scanUrl: `https://urlscan.io/result/${scanId}/`,
       };
     }
   }
 }
 
-// Example usage with two approaches
-async function main() {
-  const testUrl = 'example.com';
+/**
+ * Central function to check URL safety across multiple APIs.
+ * Each sub-function now returns its own structured result or an error object.
+ */
+async function checkUrlSafety(url) {
+  const normalizedUrl = url.startsWith('http') ? url : `http://${url}`;
 
-  try {
-    // Approach 1: Get initial results without waiting for urlscan.io
-    console.log('Checking URL safety...');
-    const initialResult = await checkUrlSafety(testUrl);
-    console.log(
-      'Initial Security Check Results:',
-      JSON.stringify(initialResult, null, 2)
-    );
+  // Execute all API checks in parallel
+  const results = await Promise.allSettled([
+    checkGoogleSafeBrowsing(normalizedUrl),
+    checkVirusTotal(normalizedUrl),
+    submitUrlscan(normalizedUrl),
+  ]);
 
-    // Extract the scan ID from the initial result
-    if (
-      initialResult.externalReports.urlscan &&
-      initialResult.externalReports.urlscan.scanId
-    ) {
-      const scanId = initialResult.externalReports.urlscan.scanId;
+  // Extract fulfilled values or create error objects for rejected ones
+  const googleSafeBrowsing =
+    results[0].status === 'fulfilled'
+      ? results[0].value
+      : {
+          error:
+            results[0].reason?.message || 'Google Safe Browsing API failed',
+        };
+  const virusTotal =
+    results[1].status === 'fulfilled'
+      ? results[1].value
+      : { error: results[1].reason?.message || 'VirusTotal API failed' };
+  const urlscan =
+    results[2].status === 'fulfilled'
+      ? results[2].value
+      : { error: results[2].reason?.message || 'URLScan.io submission failed' };
 
-      // Approach 2: Wait for urlscan.io results and then fetch them
-      console.log(
-        `\nWaiting 20 seconds for urlscan.io scan ${scanId} to complete...`
-      );
-      await new Promise((resolve) => setTimeout(resolve, 20000));
+  // Construct the externalReports object
+  const externalReports = {
+    googleSafeBrowsing:
+      googleSafeBrowsing.googleSafeBrowsing || googleSafeBrowsing, // Handles direct return or error object
+    virusTotal: virusTotal.virusTotal || virusTotal, // Handles direct return or error object
+    urlscan: urlscan, // submitUrlscan returns the object directly
+  };
 
-      const urlscanResults = await getUrlscanResults(scanId);
-      console.log(
-        'urlscan.io Results:',
-        JSON.stringify(urlscanResults, null, 2)
-      );
+  let isSafe = true; // Track if URL is safe overall
 
-      // Update the full results with the urlscan.io data
-      initialResult.externalReports.urlscan = urlscanResults;
-      initialResult.isSafe = initialResult.isSafe && !urlscanResults.malicious;
-
-      console.log(
-        '\nFinal Security Check Results:',
-        JSON.stringify(initialResult, null, 2)
-      );
-    }
-  } catch (error) {
-    console.error('Error in main process:', error);
+  // Determine overall safety based on available results and specific conditions
+  // Check for explicit 'safe: false' or 'positives > 0' or 'malicious: true'
+  // Also consider an API error as potentially unsafe or at least unknown.
+  if (
+    externalReports.googleSafeBrowsing &&
+    !externalReports.googleSafeBrowsing.safe &&
+    !externalReports.googleSafeBrowsing.error
+  ) {
+    isSafe = false;
   }
+  if (
+    externalReports.virusTotal &&
+    externalReports.virusTotal.positives > 0 &&
+    !externalReports.virusTotal.error
+  ) {
+    isSafe = false;
+  }
+  // Note: urlscan's malicious status is only known *after* getUrlscanResults,
+  // this `isSafe` check will be more accurate after `checkUrlSafetyWithUrlscan` updates it.
+  if (
+    externalReports.urlscan &&
+    externalReports.urlscan.malicious &&
+    !externalReports.urlscan.error
+  ) {
+    isSafe = false;
+  }
+  // If any API encountered a severe error, consider it potentially unsafe or unverified.
+  if (
+    externalReports.googleSafeBrowsing?.error ||
+    externalReports.virusTotal?.error ||
+    externalReports.urlscan?.error
+  ) {
+    isSafe = false; // Could also be 'unknown' depending on desired strictness
+  }
+
+  return {
+    url: normalizedUrl,
+    isSafe,
+    externalReports,
+  };
 }
 
-// Alternative function that handles both initial check and waiting for urlscan
+/**
+ * Alternative function that handles both initial check and waiting for urlscan
+ */
 async function checkUrlSafetyWithUrlscan(
   url,
   waitForUrlscan = true,
@@ -251,64 +291,37 @@ async function checkUrlSafetyWithUrlscan(
     // Wait specified time
     await new Promise((resolve) => setTimeout(resolve, waitTimeMs));
 
-    // Get urlscan results
+    // Get urlscan results (this will provide malicious, score, etc.)
     const urlscanResults = await getUrlscanResults(
       result.externalReports.urlscan.scanId
     );
 
-    // Update results
-    result.externalReports.urlscan = urlscanResults;
+    // Update results by merging the initial urlscan data with the completed results
+    result.externalReports.urlscan = {
+      ...result.externalReports.urlscan,
+      ...urlscanResults,
+    };
 
-    // Update safety status if urlscan found something malicious
-    if (urlscanResults.malicious) {
+    // Update safety status if urlscan found something malicious (now accurate)
+    if (result.externalReports.urlscan.malicious) {
       result.isSafe = false;
     }
   }
   return result;
 }
 
-// You'll need to implement this function in your service
+/**
+ * Check urlscan.io status for a scan ID
+ * This simply wraps getUrlscanResults now for consistency
+ */
 async function checkUrlscanStatus(scanId) {
-  try {
-    const response = await urlscanClient.get(`/result/${scanId}/`);
-    if (response.data && response.data.verdicts) {
-      return {
-        status: 'completed',
-        malicious: response.data.verdicts.overall.malicious,
-        score: response.data.verdicts.overall.score,
-        scanId: scanId,
-        scanUrl: `https://urlscan.io/result/${scanId}/`,
-        screenshotUrl: response.data.task?.screenshotURL || null,
-        categories: response.data.verdicts?.categories || [],
-        tags: response.data.verdicts?.tags || [],
-        scanDate: new Date(response.data.task?.time || Date.now()),
-      };
-    }
-    return {
-      status: 'pending',
-      scanId: scanId,
-      message: 'Scan in progress, results pending',
-    };
-  } catch (error) {
-    if (error.response && error.response.status === 404) {
-      return {
-        status: 'pending',
-        scanId: scanId,
-        message: 'Scan in progress, results pending',
-      };
-    } else {
-      return {
-        status: 'error',
-        scanId: scanId,
-        message: 'Error retrieving scan results',
-      };
-    }
-  }
+  return getUrlscanResults(scanId);
 }
 
+// Export functions for use in resolvers
 export {
-  checkUrlSafety,
-  getUrlscanResults,
-  checkUrlSafetyWithUrlscan,
-  checkUrlscanStatus,
+  checkUrlSafety, // Primary internal helper
+  getUrlscanResults, // Used by checkUrlscanStatus and checkUrlSafetyWithUrlscan
+  checkUrlSafetyWithUrlscan, // Main entry point for scanning
+  checkUrlscanStatus, // For frontend to poll scan status
 };

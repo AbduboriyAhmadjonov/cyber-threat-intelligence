@@ -1,47 +1,57 @@
-// THIS FILE IS NOW ONLY FOR SDL TYPEDEFS
+// graphql/schema.js (typeDefs)
 import { gql } from 'graphql-tag';
 
 const typeDefs = gql`
   type GoogleSafeBrowsingReport {
     safe: Boolean
     threats: [String]
+    error: String # Added for API errors
   }
+
   type VirusTotalReport {
     positives: Int
     total: Int
-    scanDate: Float
+    scanDate: Float # Unix timestamp in milliseconds
+    message: String # For messages like "URL not found"
+    error: String # Added for API errors
   }
+
   type UrlscanReport {
-    status: String
+    status: String # e.g., "pending", "completed", "processing", "error"
     message: String
     scanId: String
-    malicious: Boolean
-    score: Int
     scanUrl: String
     screenshotUrl: String
+    score: Int
+    malicious: Boolean
     categories: [String]
     tags: [String]
-    scanDate: Float
+    scanDate: Float # Unix timestamp in milliseconds
+    error: String # Added for API errors
   }
+
   type ExternalReports {
     googleSafeBrowsing: GoogleSafeBrowsingReport
     virusTotal: VirusTotalReport
     urlscan: UrlscanReport
   }
+
   type SafetyReport {
-    id: String
-    url: String
-    isSafe: Boolean
-    externalReports: ExternalReports
-    createdAt: Float
-    updatedAt: Float
+    id: ID! # MongoDB _id, typically String but semantically ID
+    url: String!
+    isSafe: Boolean!
+    externalReports: ExternalReports!
+    createdAt: Float # Unix timestamp in milliseconds
+    updatedAt: Float # Unix timestamp in milliseconds
   }
+
   type Query {
-    recentScans: [SafetyReport]
-    urlscanStatus(scanId: String!): UrlscanReport
+    recentScans: [SafetyReport!]! # Array of SafetyReport, never null
+    urlscanStatus(scanId: String!): UrlscanReport! # UrlscanReport is always returned
   }
+
   type Mutation {
-    scanUrl(url: String!, waitForUrlscan: Boolean): SafetyReport
+    scanUrl(url: String!, waitForUrlscan: Boolean = false): SafetyReport! # waitForUrlscan default to false
   }
 `;
 
