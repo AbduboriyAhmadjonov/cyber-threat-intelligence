@@ -72,7 +72,9 @@ const SecurityScanner = () => {
       pollingInterval = setInterval(async () => {
         try {
           // Make an API call to check URLScan status
-          const response = await axios.get(`http://localhost:8080/urlscan-status/${scanId}`);
+          const response = await axios.get(
+            `http://localhost:4000/urlscan-status/${scanId}`
+          );
 
           if (response.data && response.data.status !== 'pending') {
             // If we get a completed result, update the main results
@@ -108,7 +110,7 @@ const SecurityScanner = () => {
   const fetchScanHistory = async () => {
     setLoadingHistory(true);
     try {
-      const response = await axios.get('http://localhost:8080/dashboard');
+      const response = await axios.get('http://localhost:4000/dashboard');
       setScanHistory(response.data);
     } catch (error) {
       console.error('Error fetching scan history:', error);
@@ -121,7 +123,8 @@ const SecurityScanner = () => {
   const calculateSafetyScore = (scanResults) => {
     if (!scanResults || !scanResults.externalReports) return;
 
-    const { virusTotal, googleSafeBrowsing, urlscan } = scanResults.externalReports;
+    const { virusTotal, googleSafeBrowsing, urlscan } =
+      scanResults.externalReports;
     let score = 100;
     let threatCount = 0;
     let totalServices = 0;
@@ -192,7 +195,7 @@ const SecurityScanner = () => {
     setSafetyScore(null);
     setScanning(true);
     try {
-      const response = await axios.post('http://localhost:8080/scan', {
+      const response = await axios.post('http://localhost:4000/scan', {
         url: url,
         waitForUrlscan: false,
       });
@@ -230,7 +233,11 @@ const SecurityScanner = () => {
       case 'virustotal':
         const vt = externalReports.virusTotal || {};
         return (
-          <div className={`p-4 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'} rounded-b-lg`}>
+          <div
+            className={`p-4 ${
+              darkMode ? 'bg-gray-800' : 'bg-gray-50'
+            } rounded-b-lg`}
+          >
             <div className="flex items-center mb-4">
               <div
                 className={`w-3 h-3 rounded-full mr-2 ${
@@ -238,29 +245,45 @@ const SecurityScanner = () => {
                 }`}
               ></div>
               <h3 className="font-medium">
-                Status: {vt.positives === 0 ? 'Clean' : `${vt.positives} threats detected`}
+                Status:{' '}
+                {vt.positives === 0
+                  ? 'Clean'
+                  : `${vt.positives} threats detected`}
               </h3>
             </div>
             <p>
               Detections: {vt.positives || 0}/{vt.total || 0} engines
             </p>
-            <p>Scan Date: {vt.scanDate ? new Date(vt.scanDate).toLocaleString() : 'N/A'}</p>
+            <p>
+              Scan Date:{' '}
+              {vt.scanDate ? new Date(vt.scanDate).toLocaleString() : 'N/A'}
+            </p>
           </div>
         );
 
       case 'safeBrowsing':
         const sb = externalReports.googleSafeBrowsing || {};
         return (
-          <div className={`p-4 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'} rounded-b-lg`}>
+          <div
+            className={`p-4 ${
+              darkMode ? 'bg-gray-800' : 'bg-gray-50'
+            } rounded-b-lg`}
+          >
             <div className="flex items-center mb-4">
               <div
-                className={`w-3 h-3 rounded-full mr-2 ${sb.safe ? 'bg-green-500' : 'bg-red-500'}`}
+                className={`w-3 h-3 rounded-full mr-2 ${
+                  sb.safe ? 'bg-green-500' : 'bg-red-500'
+                }`}
               ></div>
-              <h3 className="font-medium">Status: {sb.safe ? 'Safe' : 'Unsafe'}</h3>
+              <h3 className="font-medium">
+                Status: {sb.safe ? 'Safe' : 'Unsafe'}
+              </h3>
             </div>
             <p>
               Threats:{' '}
-              {!sb.threats || sb.threats.length === 0 ? 'None detected' : sb.threats.join(', ')}
+              {!sb.threats || sb.threats.length === 0
+                ? 'None detected'
+                : sb.threats.join(', ')}
             </p>
           </div>
         );
@@ -268,7 +291,11 @@ const SecurityScanner = () => {
       case 'urlscan':
         const us = externalReports.urlscan || {};
         return (
-          <div className={`p-4 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'} rounded-b-lg`}>
+          <div
+            className={`p-4 ${
+              darkMode ? 'bg-gray-800' : 'bg-gray-50'
+            } rounded-b-lg`}
+          >
             <div className="flex items-center mb-4">
               <div
                 className={`w-3 h-3 rounded-full mr-2 ${
@@ -301,7 +328,9 @@ const SecurityScanner = () => {
                 )}
 
                 {us.scanDate && (
-                  <p className="mb-2">Scan Date: {new Date(us.scanDate).toLocaleString()}</p>
+                  <p className="mb-2">
+                    Scan Date: {new Date(us.scanDate).toLocaleString()}
+                  </p>
                 )}
 
                 {us.reportURL && (
@@ -416,7 +445,9 @@ const SecurityScanner = () => {
         <button
           onClick={toggleDarkMode}
           className={`p-2 rounded-full ${
-            darkMode ? 'bg-gray-700 text-yellow-300' : 'bg-gray-200 text-gray-700'
+            darkMode
+              ? 'bg-gray-700 text-yellow-300'
+              : 'bg-gray-200 text-gray-700'
           } transition-colors duration-300`}
           aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -463,9 +494,15 @@ const SecurityScanner = () => {
           <div
             className={`col-span-1 order-1 lg:order-2 ${
               darkMode ? 'bg-gray-800' : 'bg-white'
-            } rounded-lg shadow border ${darkMode ? 'border-gray-700' : 'border-gray-200'} h-fit`}
+            } rounded-lg shadow border ${
+              darkMode ? 'border-gray-700' : 'border-gray-200'
+            } h-fit`}
           >
-            <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div
+              className={`p-4 border-b ${
+                darkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}
+            >
               <h2 className="text-lg font-bold text-center">Safety Score</h2>
             </div>
 
@@ -481,7 +518,9 @@ const SecurityScanner = () => {
                       safetyScore.score
                     )} flex items-center justify-center`}
                   >
-                    <span className="text-4xl font-bold text-white">{safetyScore.score}</span>
+                    <span className="text-4xl font-bold text-white">
+                      {safetyScore.score}
+                    </span>
                   </div>
                 </div>
 
@@ -493,17 +532,25 @@ const SecurityScanner = () => {
                   {safetyScore.verdict.text}
                 </h3>
 
-                <p className={`text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-4`}>
+                <p
+                  className={`text-center ${
+                    darkMode ? 'text-gray-400' : 'text-gray-600'
+                  } mb-4`}
+                >
                   {safetyScore.threatCount > 0
                     ? `Threats detected by ${safetyScore.threatCount} of ${safetyScore.totalServices} services`
                     : 'No threats detected'}
                 </p>
 
                 <div
-                  className={`w-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} h-2 rounded-full`}
+                  className={`w-full ${
+                    darkMode ? 'bg-gray-700' : 'bg-gray-200'
+                  } h-2 rounded-full`}
                 >
                   <div
-                    className={`h-2 rounded-full ${getSafetyScoreColorClass(safetyScore.score)}`}
+                    className={`h-2 rounded-full ${getSafetyScoreColorClass(
+                      safetyScore.score
+                    )}`}
                     style={{ width: `${safetyScore.score}%` }}
                   ></div>
                 </div>
@@ -587,7 +634,9 @@ const SecurityScanner = () => {
         ) : scanHistory.length > 0 ? (
           <div className="overflow-x-auto">
             <table
-              className={`min-w-full ${darkMode ? 'bg-gray-800' : 'bg-white'} border rounded-lg ${
+              className={`min-w-full ${
+                darkMode ? 'bg-gray-800' : 'bg-white'
+              } border rounded-lg ${
                 darkMode ? 'border-gray-700' : 'border-gray-200'
               }`}
             >
@@ -602,7 +651,9 @@ const SecurityScanner = () => {
                 {scanHistory.map((item, index) => (
                   <tr
                     key={index}
-                    className={`border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}
+                    className={`border-t ${
+                      darkMode ? 'border-gray-700' : 'border-gray-200'
+                    }`}
                   >
                     <td className="p-2 truncate max-w-xs">{item.url}</td>
                     <td className="p-2 text-center">
@@ -613,7 +664,9 @@ const SecurityScanner = () => {
                       ></span>
                     </td>
                     <td className="p-2 text-center text-sm">
-                      {item.createdAt ? new Date(item.createdAt).toLocaleString() : 'N/A'}
+                      {item.createdAt
+                        ? new Date(item.createdAt).toLocaleString()
+                        : 'N/A'}
                     </td>
                   </tr>
                 ))}
@@ -621,14 +674,25 @@ const SecurityScanner = () => {
             </table>
           </div>
         ) : (
-          <p className={`text-center ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <p
+            className={`text-center ${
+              darkMode ? 'text-gray-400' : 'text-gray-500'
+            }`}
+          >
             No scan history available
           </p>
         )}
       </div>
 
-      <div className={`mt-8 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'} text-center`}>
-        <p>This security scanner checks URLs against multiple threat intelligence sources.</p>
+      <div
+        className={`mt-8 text-sm ${
+          darkMode ? 'text-gray-400' : 'text-gray-500'
+        } text-center`}
+      >
+        <p>
+          This security scanner checks URLs against multiple threat intelligence
+          sources.
+        </p>
       </div>
     </div>
   );
