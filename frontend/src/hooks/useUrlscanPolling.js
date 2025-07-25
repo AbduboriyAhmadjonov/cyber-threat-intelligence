@@ -1,49 +1,89 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import axios from 'axios';
 
 /**
  * Custom hook for polling URLScan.io results
  * @param {string} scanId - The URLScan.io scan ID to poll
- * @param {boolean} shouldPoll - Whether polling should be active
- * @param {function} onResultsReceived - Callback function to handle received results
- * @returns {Object} { polling } - Whether polling is currently active
+ * @param {boolean} polling - Whether polling is active
+ * @param {function} setPolling - Function to set polling state
+ * @param {function} onUpdate - Callback for when URLScan results are updated
+ * @returns {void}
  */
-export const useUrlscanPolling = (scanId, shouldPoll, onResultsReceived) => {
-  const [polling, setPolling] = useState(shouldPoll);
-
+export const useUrlscanPolling = (
+  scanId,
+  polling,
+  setPolling,
+  onUpdate
+) => {
   useEffect(() => {
-    setPolling(shouldPoll);
-  }, [shouldPoll]);
+    // Don't poll if no scan ID or polling is disabled
+    if (!scanId || !polling) return;
 
-  useEffect(() => {
-    let pollingInterval;
-
-    if (polling && scanId) {
-      // Set up polling every 5 seconds
-      pollingInterval = setInterval(async () => {
-        try {
-          const response = await axios.get(
-            `http://localhost:4000/urlscan/${scanId}`
-          );
-
-          // If the scan is completed, stop polling and call the callback
-          if (response.data.status === 'completed') {
-            setPolling(false);
-            if (onResultsReceived) {
-              onResultsReceived(response.data);
+    console.log('Starting URLScan polling for scanId:', scanId);
+    let pollCount = 0;
+    const maxPolls = 60; // Maximum number of polling attempts (5 minutes total)
+    
+    const pollInterval = setInterval(async () => {
+      pollCount++;
+      console.log(`Polling URLScan results (attempt ${pollCount}/${maxPolls})...`);
+      
+      try {
+        // Use GraphQL query to check URLScan status
+        const response = await axios.post('http://localhost:4000/graphql', {
+          query: `
+            query GetUrlscanResults($scanId: String!) {
+              getUrlscanResults(scanId: $scanId) {
+                status
+                message
+                scanId
+                scanUrl
+                score
+                malicious
+                categories
+                scanDate
+              }
             }
+          `,
+          variables: {
+            scanId: scanId
           }
-        } catch (error) {
-          console.error('Error polling URLScan.io results:', error);
+        });
+
+        // Extract the URLScan results from the GraphQL response
+        const urlscanResult = response.data.data.getUrlscanResults;
+        
+        console.log('URLScan polling result:', urlscanResult);
+        
+        // Check if scan is completed or failed
+        if (urlscanResult.status === 'completed' || urlscanResult.status === 'failed') {
+          clearInterval(pollInterval);
+          setPolling(false);
+          
+          // Update the results with the final URLScan data
+          onUpdate(urlscanResult);
         }
-      }, 5000); // Poll every 5 seconds
-    }
-
-    // Cleanup the interval on unmount or when polling stops
+      } catch (error) {
+        console.error('Error polling URLScan results:', error);
+        
+        // Stop polling after maximum attempts or on error
+        if (pollCount >= maxPolls) {
+          console.log('Reached maximum polling attempts, stopping...');
+          clearInterval(pollInterval);
+          setPolling(false);
+          
+          // Update with error status
+          onUpdate({
+            status: 'failed',
+            message: 'Timed out waiting for URLScan results'
+          });
+        }
+      }
+    }, 5000); // Poll every 5 seconds
+    
+    // Cleanup function to clear interval when component unmounts
     return () => {
-      if (pollingInterval) clearInterval(pollingInterval);
+      console.log('Cleaning up URLScan polling interval');
+      clearInterval(pollInterval);
     };
-  }, [polling, scanId, onResultsReceived]);
-
-  return { polling };
+  }, [scanId, polling, setPolling, onUpdate]);
 };

@@ -67,7 +67,7 @@ export const useScanUrl = (onScanComplete) => {
     score = Math.max(0, Math.min(100, score));
 
     const verdict = getVerdict(score);
-    
+
     setSafetyScore({
       score,
       threatCount,
@@ -92,67 +92,30 @@ export const useScanUrl = (onScanComplete) => {
     setResults(null);
     setSafetyScore(null);
     setScanning(true);
-    
+
     try {
-      // GraphQL mutation for scanning a URL
-      const response = await axios.post('http://localhost:4000/graphql', {
-        query: `
-          mutation ScanUrl($url: String!, $waitForUrlscan: Boolean) {
-            scanUrl(url: $url, waitForUrlscan: $waitForUrlscan) {
-              id
-              url
-              isSafe
-              externalReports {
-                googleSafeBrowsing {
-                  safe
-                  threats
-                }
-                virusTotal {
-                  positives
-                  total
-                  scanDate
-                  message
-                }
-                urlscan {
-                  status
-                  message
-                  scanId
-                  scanUrl
-                  score
-                  malicious
-                  categories
-                  scanDate
-                }
-              }
-              createdAt
-            }
-          }
-        `,
-        variables: {
-          url: url,
-          waitForUrlscan: false
-        }
+      const response = await axios.post('http://localhost:4000/scan', {
+        url: url,
+        waitForUrlscan: false,
       });
 
-      // Extract the data from the GraphQL response
-      const scanData = response.data.data.scanUrl;
-      setResults(scanData);
-      calculateSafetyScore(scanData);
-      console.log('Scan Result:', scanData);
+      setResults(response.data);
+      calculateSafetyScore(response.data);
+      console.log('Scan Result:', response.data);
 
       // Check if URLScan is pending and has a scan ID
       if (
-        scanData?.externalReports?.urlscan?.status === 'pending' &&
-        scanData?.externalReports?.urlscan?.scanId
+        response.data?.externalReports?.urlscan?.status === 'pending' &&
+        response.data?.externalReports?.urlscan?.scanId
       ) {
         // Start polling for URLScan results
-        setScanId(scanData.externalReports.urlscan.scanId);
+        setScanId(response.data.externalReports.urlscan.scanId);
         setUrlscanPolling(true);
       }
 
       // Call the onScanComplete callback if provided
       if (onScanComplete) {
-        onScanComplete();
+        onScanComplete(response.data);
       }
     } catch (error) {
       console.error('Error scanning URL:', error);
@@ -162,24 +125,27 @@ export const useScanUrl = (onScanComplete) => {
   }, [url, calculateSafetyScore, onScanComplete]);
 
   // Handle URLScan.io result update
-  const handleUrlscanUpdate = useCallback((urlscanResult) => {
-    if (!results) return;
-    
-    // Create updated results with new urlscan data
-    const updatedResults = {
-      ...results,
-      externalReports: {
-        ...results.externalReports,
-        urlscan: {
-          ...results.externalReports.urlscan,
-          ...urlscanResult
-        }
-      }
-    };
-    
-    setResults(updatedResults);
-    calculateSafetyScore(updatedResults);
-  }, [results, calculateSafetyScore]);
+  const handleUrlscanUpdate = useCallback(
+    (urlscanResult) => {
+      if (!results) return;
+
+      // Create updated results with new urlscan data
+      const updatedResults = {
+        ...results,
+        externalReports: {
+          ...results.externalReports,
+          urlscan: {
+            ...results.externalReports.urlscan,
+            ...urlscanResult,
+          },
+        },
+      };
+
+      setResults(updatedResults);
+      calculateSafetyScore(updatedResults);
+    },
+    [results, calculateSafetyScore]
+  );
 
   return {
     url,
@@ -191,6 +157,6 @@ export const useScanUrl = (onScanComplete) => {
     setUrlscanPolling,
     safetyScore,
     handleScan,
-    handleUrlscanUpdate
+    handleUrlscanUpdate,
   };
 };
