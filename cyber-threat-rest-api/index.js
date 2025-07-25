@@ -3,7 +3,10 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 
-const { checkUrlSafetyWithUrlscan, checkUrlscanStatus } = require('./checkUrlSafety');
+const {
+  checkUrlSafetyWithUrlscan,
+  checkUrlscanStatus,
+} = require('./checkUrlSafety');
 const Safety = require('./models/db');
 
 const app = express();
@@ -12,7 +15,11 @@ app.use(express.json()); // Needed to parse JSON bodies
 // Enable CORS
 app.use(
   cors({
-    origin: ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:5173'],
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:8080',
+      'http://localhost:5173',
+    ],
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -46,7 +53,10 @@ app.post('/scan', async (req, res) => {
 
   try {
     // Check URL safety
-    const result = await checkUrlSafetyWithUrlscan(url, waitForUrlscan === 'true');
+    const result = await checkUrlSafetyWithUrlscan(
+      url,
+      waitForUrlscan === 'true'
+    );
     if (!result) {
       return res.status(404).json({ message: 'Checking ' });
     }
@@ -102,8 +112,7 @@ mongoose
   .connect(process.env.MONGODB_URI)
   .then((result) => {
     app.listen(8080, () => {
-      console.log('🚀 Server running at http://localhost:8080/graphql');
-      console.log('🚀 For running ruru http://localhost:8080/ruru');
+      console.log('🚀 Server running at http://localhost:8080/');
     });
   })
   .catch((err) => console.log(`Database connection failed: ${err}`));
