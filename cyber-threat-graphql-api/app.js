@@ -28,6 +28,6 @@ await mongoose
   });
 
 const { url } = await startStandaloneServer(server, {
-  listen: { port: 4000 },
+  listen: { port: 8004 },
 });
 console.log(`🚀 Server ready at ${url}`);
