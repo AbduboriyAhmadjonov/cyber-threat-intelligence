@@ -25,9 +25,9 @@ jobs:
       - name: Deploy Frontend to /var/www/cyber-threat
         run: |
           echo "Cleaning old frontend files..."
-          sudo rm -rf /var/www/cyber-threat/*
-          sudo mkdir -p /var/www/cyber-threat
-          sudo cp -r ./frontend/dist/* /var/www/cyber-threat/
+          sudo /bin/rm -rf /var/www/cyber-threat/*
+          sudo /bin/mkdir -p /var/www/cyber-threat
+          sudo /bin/cp -r ./frontend/dist/* /var/www/cyber-threat/
 
       # Setup and Restart Backend
       - name: Install Backend Dependencies
