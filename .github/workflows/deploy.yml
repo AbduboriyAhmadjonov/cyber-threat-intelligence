@@ -1,0 +1,51 @@
+name: Deploy to Digital Ocean
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: true
+          fetch-depth: 1
+
+      # Deploy Frontend
+      - name: Build Frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy Frontend to /var/www/cyber-threat
+        run: |
+          echo "Cleaning old frontend files..."
+          sudo rm -rf /var/www/cyber-threat/*
+          sudo mkdir -p /var/www/cyber-threat
+          sudo cp -r ./frontend/dist/* /var/www/cyber-threat/
+
+      # Setup and Restart Backend
+      - name: Install Backend Dependencies
+        working-directory: ./cyber-threat-graphql-api
+        run: |
+          npm ci
+
+      - name: Inject Environment Variables
+        working-directory: ./cyber-threat-graphql-api
+        run: |
+          echo "${{ secrets.DOTENV_FILE }}" > .env
+
+      - name: Restart GraphQL API using PM2
+        run: |
+          echo "Restarting GraphQL API..."
+          if pm2 describe graphql-api > /dev/null; then
+            pm2 restart graphql-api
+          else
+            pm2 start ./cyber-threat-graphql-api/app.js --name graphql-api
+          fi
+          pm2 save
