@@ -13,7 +13,7 @@ export const useScanHistory = () => {
     setLoadingHistory(true);
     try {
       // GraphQL query for recent scans
-      const response = await axios.post('http://localhost:4000/graphql', {
+      const response = await axios.post('http://localhost:8004/graphql', {
         query: `
           query GetRecentScans {
             recentScans {
@@ -23,9 +23,9 @@ export const useScanHistory = () => {
               createdAt
             }
           }
-        `
+        `,
       });
-      
+
       // Extract the data from the GraphQL response
       if (response.data.data && response.data.data.recentScans) {
         setScanHistory(response.data.data.recentScans);

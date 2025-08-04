@@ -18,8 +18,7 @@ export const useScanUrl = (onScanComplete) => {
   const calculateSafetyScore = useCallback((scanResults) => {
     if (!scanResults || !scanResults.externalReports) return;
 
-    const { virusTotal, googleSafeBrowsing, urlscan } =
-      scanResults.externalReports;
+    const { virusTotal, googleSafeBrowsing, urlscan } = scanResults.externalReports;
     let score = 100;
     let threatCount = 0;
     let totalServices = 0;
@@ -67,7 +66,7 @@ export const useScanUrl = (onScanComplete) => {
     score = Math.max(0, Math.min(100, score));
 
     const verdict = getVerdict(score);
-    
+
     setSafetyScore({
       score,
       threatCount,
@@ -92,10 +91,10 @@ export const useScanUrl = (onScanComplete) => {
     setResults(null);
     setSafetyScore(null);
     setScanning(true);
-    
+
     try {
       // GraphQL mutation for scanning a URL
-      const response = await axios.post('http://localhost:4000/graphql', {
+      const response = await axios.post('http://localhost:8004/graphql', {
         query: `
           mutation ScanUrl($url: String!, $waitForUrlscan: Boolean) {
             scanUrl(url: $url, waitForUrlscan: $waitForUrlscan) {
@@ -130,8 +129,8 @@ export const useScanUrl = (onScanComplete) => {
         `,
         variables: {
           url: url,
-          waitForUrlscan: false
-        }
+          waitForUrlscan: false,
+        },
       });
 
       // Extract the data from the GraphQL response
@@ -162,24 +161,27 @@ export const useScanUrl = (onScanComplete) => {
   }, [url, calculateSafetyScore, onScanComplete]);
 
   // Handle URLScan.io result update
-  const handleUrlscanUpdate = useCallback((urlscanResult) => {
-    if (!results) return;
-    
-    // Create updated results with new urlscan data
-    const updatedResults = {
-      ...results,
-      externalReports: {
-        ...results.externalReports,
-        urlscan: {
-          ...results.externalReports.urlscan,
-          ...urlscanResult
-        }
-      }
-    };
-    
-    setResults(updatedResults);
-    calculateSafetyScore(updatedResults);
-  }, [results, calculateSafetyScore]);
+  const handleUrlscanUpdate = useCallback(
+    (urlscanResult) => {
+      if (!results) return;
+
+      // Create updated results with new urlscan data
+      const updatedResults = {
+        ...results,
+        externalReports: {
+          ...results.externalReports,
+          urlscan: {
+            ...results.externalReports.urlscan,
+            ...urlscanResult,
+          },
+        },
+      };
+
+      setResults(updatedResults);
+      calculateSafetyScore(updatedResults);
+    },
+    [results, calculateSafetyScore]
+  );
 
   return {
     url,
@@ -191,6 +193,6 @@ export const useScanUrl = (onScanComplete) => {
     setUrlscanPolling,
     safetyScore,
     handleScan,
-    handleUrlscanUpdate
+    handleUrlscanUpdate,
   };
 };
