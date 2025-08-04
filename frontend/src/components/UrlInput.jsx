@@ -25,7 +25,7 @@ const UrlInput = ({ url, setUrl, handleScan, scanning, darkMode }) => {
       <button
         onClick={handleScan}
         disabled={scanning || !url}
-        className={`px-4 py-3 rounded-r-lg font-medium ${
+        className={`px-4 py-3 rounded-r-lg font-medium hover:cursor-pointer ${
           scanning || !url
             ? 'bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
             : 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800'

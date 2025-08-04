@@ -20,7 +20,7 @@ const ResultTabs = ({ activeTab, setActiveTab, darkMode }) => {
         <button
           key={tab.id}
           onClick={() => setActiveTab(tab.id)}
-          className={`flex-1 py-2 px-4 text-center ${
+          className={`flex-1 py-2 px-4 text-center hover:cursor-pointer ${
             activeTab === tab.id
               ? darkMode
                 ? 'bg-blue-900 text-blue-300 font-medium'

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import LoadingSpinner from './components/LoadingSpinner';
 import ThemeToggle from './components/ThemeToggle';
 import UrlInput from './components/UrlInput';
@@ -10,10 +9,10 @@ import { useScanUrl } from './hooks/useScanUrl';
 import { useUrlscanPolling } from './hooks/useUrlscanPolling';
 
 /**
- * SecurityScanner - Main component for the URL security scanning application
+ * App - Main component for the URL security scanning application
  * Provides functionality to scan URLs for security threats using multiple services
  */
-const SecurityScanner = () => {
+const App = () => {
   // Use custom hooks for functionality
   const [darkMode, toggleDarkMode] = useDarkMode();
   const { scanHistory, loadingHistory, fetchScanHistory } = useScanHistory();
@@ -73,25 +72,14 @@ const SecurityScanner = () => {
       )}
 
       {/* Scan History */}
-      <ScanHistory
-        scanHistory={scanHistory}
-        loading={loadingHistory}
-        darkMode={darkMode}
-      />
+      <ScanHistory scanHistory={scanHistory} loading={loadingHistory} darkMode={darkMode} />
 
       {/* Footer */}
-      <div
-        className={`mt-8 text-sm ${
-          darkMode ? 'text-gray-400' : 'text-gray-500'
-        } text-center`}
-      >
-        <p>
-          This security scanner checks URLs against multiple threat intelligence
-          sources.
-        </p>
+      <div className={`mt-8 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'} text-center`}>
+        <p>This security scanner checks URLs against multiple threat intelligence sources.</p>
       </div>
     </div>
   );
 };
 
-export default SecurityScanner;
+export default App;

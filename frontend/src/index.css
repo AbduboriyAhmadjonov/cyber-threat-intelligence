@@ -10,42 +10,10 @@
   --text-primary: #f3f4f6;
 }
 
-/* 
-  body {
-    @apply bg-gray-50 dark:bg-gray-900 transition-colors duration-300;
-  } */
+body {
+  @apply bg-white text-gray-900 transition-colors duration-300;
+}
 
-/* .dark-mode {
-  background-color: #111827;
-  color: #f3f4f6;
+.dark body {
+  @apply bg-[#060d1b] text-white; /* Dark mode background and text color - bg-gray-950 */
 }
-.dark-mode .dark-bg {
-  background-color: #1f2937;
-}
-.dark-mode .dark-border {
-  border-color: #374151;
-}
-.dark-mode .dark-text {
-  color: #f3f4f6;
-}
-.dark-mode .dark-bg-secondary {
-  background-color: #1f2937;
-}
-.dark-mode .dark-bg-tertiary {
-  background-color: #374151;
-} */
-
-/* :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-} */

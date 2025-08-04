@@ -28,15 +28,9 @@ const ScanResults = ({ results, safetyScore, urlscanPolling, darkMode }) => {
       <div
         className={`col-span-1 order-1 lg:order-2 ${
           darkMode ? 'bg-gray-800' : 'bg-white'
-        } rounded-lg shadow border ${
-          darkMode ? 'border-gray-700' : 'border-gray-200'
-        } h-fit`}
+        } rounded-lg shadow border ${darkMode ? 'border-gray-700' : 'border-gray-200'} h-fit`}
       >
-        <div
-          className={`p-4 border-b ${
-            darkMode ? 'border-gray-700' : 'border-gray-200'
-          }`}
-        >
+        <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <h2 className="text-lg font-bold text-center">Safety Score</h2>
         </div>
 
@@ -53,13 +47,11 @@ const ScanResults = ({ results, safetyScore, urlscanPolling, darkMode }) => {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           darkMode={darkMode}
+          className=" hover:cursor-pointer transition-colors duration-300"
         />
 
         {activeTab === 'virustotal' && (
-          <VirusTotalResults
-            data={externalReports.virusTotal}
-            darkMode={darkMode}
-          />
+          <VirusTotalResults data={externalReports.virusTotal} darkMode={darkMode} />
         )}
 
         {activeTab === 'safeBrowsing' && (
