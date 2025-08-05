@@ -13,7 +13,7 @@ export const useScanHistory = () => {
     setLoadingHistory(true);
     try {
       // GraphQL query for recent scans
-      const response = await axios.post('http://localhost:8004/graphql', {
+      const response = await axios.post('https://cyber-threat.abduboriy.tech/api/graphql', {
         query: `
           query GetRecentScans {
             recentScans {

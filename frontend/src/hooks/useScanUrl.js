@@ -94,7 +94,7 @@ export const useScanUrl = (onScanComplete) => {
 
     try {
       // GraphQL mutation for scanning a URL
-      const response = await axios.post('http://localhost:8004/graphql', {
+      const response = await axios.post('https://cyber-threat.abduboriy.tech/api/graphql', {
         query: `
           mutation ScanUrl($url: String!, $waitForUrlscan: Boolean) {
             scanUrl(url: $url, waitForUrlscan: $waitForUrlscan) {

@@ -24,7 +24,7 @@ export const useUrlscanPolling = (scanId, polling, setPolling, onUpdate) => {
 
       try {
         // Use GraphQL query to check URLScan status
-        const response = await axios.post('http://localhost:8004/graphql', {
+        const response = await axios.post('https://cyber-threat.abduboriy.tech/api/graphql', {
           query: `
             query GetUrlscanResults($scanId: String!) {
               getUrlscanResults(scanId: $scanId) {
